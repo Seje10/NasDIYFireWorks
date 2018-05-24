@@ -1,0 +1,581 @@
+﻿<!doctype html>
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<title>NAS自定义烟花表白祝福</title>
+	<link rel="stylesheet" href="css/bootstrap.min.css" />
+
+	<style>
+		body {
+			background: #000;
+			margin: 0;
+		}
+
+		#sure,
+		#find,
+		#reset {
+			color: white;
+			font-size: 23px;
+			float: left;
+			margin: 5px;
+			margin-right: 10px;
+		}
+
+		#canvas1 {
+			cursor: crosshair;
+			display: block;
+			position: absolute;
+			z-index: 3;
+		}
+
+		#canvas2 {
+			cursor: crosshair;
+			display: block;
+			position: absolute;
+			z-index: 4
+		}
+
+		#buttonSide {
+			position: absolute;
+			z-index: 5
+		}
+
+		.nameLine,
+		.findLine {
+			color: white;
+			font-size: 16px;
+			margin: 5px;
+		}
+
+		#text,
+		#name {
+			color: #000;
+		}
+
+		.nameLabel,
+		.textLabel {
+			margin-right: 10px;
+		}
+
+		#tips {
+			position: absolute;
+			color: wheat;
+			width: 600px;
+			left: 50%;
+			margin-left: -200px;
+			top: 10px;
+		}
+
+		#noExtension {
+			color: white;
+			font-size: 16px;
+		}
+
+		#penddingBox {
+			display: none;
+		}
+
+		.whiteB {
+			width: 100%;
+			height: 100%;
+			position: absolute;
+			z-index: 999;
+			background-color: white;
+			opacity: 0.5;
+		}
+
+		.loading {
+			position: absolute;
+			color: yellow;
+			z-index: 999;
+			left: 50%;
+			top: 50%;
+			margin-top: -20px;
+			margin-left: -50px;
+			font-size: 30px;
+		}
+	</style>
+
+</head>
+
+<body>
+	<div class="noExtension" id="noExtension">
+		NOTE: Please install
+		<a target="_blank" href="https://github.com/ChengOrangeJu/WebExtensionWallet">WebExtensionWallet</a> to use this dapp
+	</div>
+	<div id="buttonSide">
+		<p>
+			<div class="nameLine">
+				<span class="nameLabel">请输入烟花名称</span>
+				<input type="text" id="name" value="">
+			</div>
+			<div class="findLine">
+				<span class="textLabel">请输入祝福字样</span>
+				<input type="text" id="text" value="">
+			</div>
+		</p>
+		<div class="buttonGroup">
+			<button id="find" class="btn btn-info">查找</button>
+			<button id="sure" class="btn btn-success">确定</button>
+			<button id="reset" class="btn btn-danger">清空</button>
+		</div>
+	</div>
+	<div id="tips">
+		<p>注意：如果安装了插件还没有按钮出现，请多刷新几次</p>
+		<p>本系统可以提供自定义烟花图案制作；只需要在面板上面依次点击鼠标左键进行描绘图案</p>
+		<p>然后在“祝福字样”输入框输入想要写入的祝福短语</p>
+		<p>最后在“烟花名称”输入框输入自己特殊的烟花名字，按“确认”按钮,分享给他人
+			<p>
+				<p>《如何查看烟花》：只需要在输入特定的烟花名称即可看到第一个起这个名称的烟花。</p>
+	</div>
+	<div id="penddingBox">
+		<div class="whiteB"></div>
+		<p class="loading">loading!....</p>
+	</div>
+
+	<canvas id="canvas1"></canvas>
+	<canvas id="canvas2"></canvas>
+	<script type="text/javascript" src="js/jquery.min.js"></script>
+	<script type="text/javascript" src="js/nebPay.js"></script>
+	<script type="text/javascript" src="js/bootstrap.min.js"></script>
+	<script>
+
+		var NebPay = require("nebpay"); //https://github.com/nebulasio/nebPay
+		var nebPay = new NebPay();
+		var buttonSide = $("#buttonSide");
+		var dappAddress = 'n1wDMZPTwSGb18EU4MgGfF95bsNn135qsho';
+		var text = "欢迎使用定义烟花系统，请看上面使用说明"
+		// setting points collection
+		var settingFireWoks = []
+		var isLoop = false
+		window.onload = loop
+		if (typeof (webExtensionWallet) !== "undefined") {
+			$("#noExtension").hide()
+			buttonSide.show()
+		} else {
+			buttonSide.hide()
+		}
+		// when animating on canvas, it is best to use requestAnimationFrame instead of setTimeout or setInterval
+		// not supported in all browsers though and sometimes needs a prefix, so we need a shim
+		window.requestAnimFrame = (function () {
+			return window.requestAnimationFrame ||
+				window.webkitRequestAnimationFrame ||
+				window.mozRequestAnimationFrame ||
+				function (callback) {
+					window.setTimeout(callback, 1000 / 60);
+				};
+		})();
+
+		$("#find").click(function () {
+			var to = dappAddress;
+			var value = "0";
+			var callFunction = "get"
+			var name = $("#name")
+			var callArgs;
+			if (name.val() === "") {
+				alert("烟花名字不能为空喔~")
+				return
+			}
+			$("#penddingBox").show()
+			nebPay.simulateCall(to, value, callFunction, callArgs, {
+				listener: function (resp) {
+					$("#penddingBox").hide()
+					var doc = JSON.parse(resp.result);
+					var findout = false
+					for (var i = 0; i < doc.length; i++) {
+						if (doc[i].name === name.val()) {
+							findout = true
+							settingFireWoks = doc[i].setting
+							text = doc[i].text
+						}
+					}
+					if (!findout) {
+						alert("请输入正确的烟花名字，注意大小写，标点符号，如何确保无误，请耐心等待烟花上传")
+					} else {
+						$("#buttonSide").hide()
+						$("#tips").hide()
+						canvas2.remove();
+					}
+				}
+			})
+		})
+
+		$("#sure").click(function () {
+			var to = dappAddress;
+			var value = "0";
+			var callFunction = "add";
+			var name = $("#name")
+			var textBtn = $("#text")
+			name = name.val()
+			text = textBtn.val()
+			if (name === "") {
+				alert("专属名字不能为空")
+				return
+			}
+			if (settingFireWoks.length === 0) {
+				alert("你的烟花还没设置呢")
+				return
+			}
+			$("#penddingBox").show()
+			var callArgs = JSON.stringify([{ name: name, text: text, setting: settingFireWoks }]);
+			nebPay.call(to, value, callFunction, callArgs, { //使用nebpay的simulateCall接口去执行get查询, 模拟执行.不发送交易,不上链
+				listener: function (resp) {
+					canvas2.remove();
+					$(".buttonGroup").hide()
+					$("#penddingBox").hide()
+					alert("上传成功，赶快分享给你的爱人吧~")
+				}
+			});
+		})
+
+		$("#reset").click(function () {
+			settingFireWoks = []
+		})
+
+		// now we will setup our basic variables for the demo
+		var canvas = document.getElementById('canvas1'),
+			ctx = canvas.getContext('2d'),
+			// full screen dimensions
+			cw = window.innerWidth,
+			ch = window.innerHeight,
+			// firework collection
+			fireworks = [],
+			// particle collection
+			particles = [],
+			// starting hue
+			hue = 120,
+			// when launching fireworks with a click, too many get launched at once without a limiter, one launch per 5 loop ticks
+			limiterTotal = 5,
+			limiterTick = 0,
+			// this will time the auto launches of fireworks, one launch per 80 loop ticks
+			timerTotal = 80,
+			timerTick = 0,
+			mousedown = false,
+			// mouse x coordinate,
+			mx,
+			// mouse y coordinate
+			my;
+
+		// set canvas dimensions
+		canvas.width = cw;
+		canvas.height = ch;
+
+		canvas2 = document.getElementById("canvas2")
+		var ctx2 = canvas2.getContext('2d')
+		canvas2.width = cw;
+		canvas2.height = ch;
+
+		// now we are going to setup our function placeholders for the entire demo
+
+		// get a random number within a range
+		function random(min, max) {
+			return Math.random() * (max - min) + min;
+		}
+
+		// calculate the distance between two points
+		function calculateDistance(p1x, p1y, p2x, p2y) {
+			var xDistance = p1x - p2x,
+				yDistance = p1y - p2y;
+			return Math.sqrt(Math.pow(xDistance, 2) + Math.pow(yDistance, 2));
+		}
+
+		// create firework
+		function Firework(sx, sy, tx, ty) {
+			// actual coordinates
+			this.x = sx;
+			this.y = sy;
+			// starting coordinates
+			this.sx = sx;
+			this.sy = sy;
+			// target coordinates
+			this.tx = tx;
+			this.ty = ty;
+			// distance from starting point to target
+			this.distanceToTarget = calculateDistance(sx, sy, tx, ty);
+			this.distanceTraveled = 0;
+			// track the past coordinates of each firework to create a trail effect, increase the coordinate count to create more prominent trails
+			this.coordinates = [];
+			this.coordinateCount = 3;
+			// populate initial coordinate collection with the current coordinates
+			while (this.coordinateCount--) {
+				this.coordinates.push([this.x, this.y]);
+			}
+			this.angle = Math.atan2(ty - sy, tx - sx);
+			this.speed = 2;
+			this.acceleration = 1.05;
+			this.brightness = random(50, 70);
+			// circle target indicator radius
+			this.targetRadius = 1;
+		}
+
+		// update firework
+		Firework.prototype.update = function (index) {
+			// remove last item in coordinates array
+			this.coordinates.pop();
+			// add current coordinates to the start of the array
+			this.coordinates.unshift([this.x, this.y]);
+
+			// cycle the circle target indicator radius
+			if (this.targetRadius < 8) {
+				this.targetRadius += 0.3;
+			} else {
+				this.targetRadius = 1;
+			}
+
+
+			// speed up the firework
+			this.speed *= this.acceleration;
+
+			// get the current velocities based on angle and speed
+			var vx = Math.cos(this.angle) * this.speed,
+				vy = Math.sin(this.angle) * this.speed;
+			// how far will the firework have traveled with velocities applied?
+			this.distanceTraveled = calculateDistance(this.sx, this.sy, this.x + vx, this.y + vy);
+
+			// if the distance traveled, including velocities, is greater than the initial distance to the target, then the target has been reached
+			if (this.distanceTraveled >= this.distanceToTarget) {
+				createParticles(this.tx, this.ty);
+				// remove the firework, use the index passed into the update function to determine which to remove
+				fireworks.splice(index, 1);
+
+			} else {
+				// target not reached, keep traveling
+				this.x += vx;
+				this.y += vy;
+			}
+		}
+
+		// draw firework
+		Firework.prototype.draw = function () {
+			ctx.beginPath();
+			// move to the last tracked coordinate in the set, then draw a line to the current x and y
+			ctx.moveTo(this.coordinates[this.coordinates.length - 1][0], this.coordinates[this.coordinates.length - 1][1]);
+			ctx.lineTo(this.x, this.y);
+			ctx.strokeStyle = 'hsl(' + hue + ', 100%, ' + this.brightness + '%)';
+			ctx.stroke();
+
+			ctx.beginPath();
+			// draw the target for this firework with a pulsing circle
+			ctx.arc(this.tx, this.ty, this.targetRadius, 0, Math.PI * 2);
+			ctx.stroke();
+			//
+			ctx2.beginPath();
+			// move to the last tracked coordinate in the set, then draw a line to the current x and y
+			ctx2.moveTo(this.coordinates[this.coordinates.length - 1][0], this.coordinates[this.coordinates.length - 1][1]);
+			ctx2.lineTo(this.x, this.y);
+			ctx2.strokeStyle = 'hsl(' + hue + ', 100%, ' + this.brightness + '%)';
+			ctx2.stroke();
+
+			ctx2.beginPath();
+			// draw the target for this firework with a pulsing circle
+			ctx2.arc(this.tx, this.ty, this.targetRadius, 0, Math.PI * 2);
+			ctx2.stroke();
+		}
+
+		// create particle
+		function Particle(x, y) {
+			this.x = x;
+			this.y = y;
+			// track the past coordinates of each particle to create a trail effect, increase the coordinate count to create more prominent trails
+			this.coordinates = [];
+			this.coordinateCount = 5;
+			while (this.coordinateCount--) {
+				this.coordinates.push([this.x, this.y]);
+			}
+			// set a random angle in all possible directions, in radians
+			this.angle = random(0, Math.PI * 2);
+			this.speed = random(1, 10);
+			// friction will slow the particle down
+			this.friction = 0.95;
+			// gravity will be applied and pull the particle down
+			this.gravity = 1;
+			// set the hue to a random number +-20 of the overall hue variable
+			this.hue = random(hue - 20, hue + 20);
+			this.brightness = random(50, 80);
+			this.alpha = 1;
+			// set how fast the particle fades out
+			this.decay = random(0.015, 0.03);
+		}
+
+		// update particle
+		Particle.prototype.update = function (index) {
+			// remove last item in coordinates array
+			this.coordinates.pop();
+			// add current coordinates to the start of the array
+			this.coordinates.unshift([this.x, this.y]);
+			// slow down the particle
+			this.speed *= this.friction;
+			// apply velocity
+			this.x += Math.cos(this.angle) * this.speed;
+			this.y += Math.sin(this.angle) * this.speed + this.gravity;
+			// fade out the particle
+			this.alpha -= this.decay;
+
+			// remove the particle once the alpha is low enough, based on the passed in index
+			if (this.alpha <= this.decay) {
+				particles.splice(index, 1);
+			}
+		}
+
+
+
+		// draw particle
+		Particle.prototype.draw = function () {
+
+			ctx.beginPath();
+			// move to the last tracked coordinates in the set, then draw a line to the current x and y
+			ctx.moveTo(this.coordinates[this.coordinates.length - 1][0], this.coordinates[this.coordinates.length - 1][1]);
+			ctx.lineTo(this.x, this.y);
+			ctx.strokeStyle = 'hsla(' + this.hue + ', 100%, ' + this.brightness + '%, ' + this.alpha + ')';
+			ctx.stroke();
+			ctx2.beginPath();
+			// move to the last tracked coordinates in the set, then draw a line to the current x and y
+			ctx2.moveTo(this.coordinates[this.coordinates.length - 1][0], this.coordinates[this.coordinates.length - 1][1]);
+			ctx2.lineTo(this.x, this.y);
+			ctx2.strokeStyle = 'hsla(' + this.hue + ', 100%, ' + this.brightness + '%, ' + this.alpha + ')';
+			ctx2.stroke();
+
+		}
+
+		// create particle group/explosion
+		function createParticles(x, y) {
+			// increase the particle count for a bigger explosion, beware of the canvas performance hit with the increased particles though
+			var particleCount = 30;
+			while (particleCount--) {
+				particles.push(new Particle(x, y));
+			}
+		}
+
+		// main demo loop
+		function loop() {
+			isLoop = true
+			// this function will run endlessly with requestAnimationFrame
+			requestAnimFrame(loop);
+
+			// increase the hue to get different colored fireworks over time
+			hue += 0.5;
+
+			// normally, clearRect() would be used to clear the canvas
+			// we want to create a trailing effect though
+			// setting the composite operation to destination-out will allow us to clear the canvas at a specific opacity, rather than wiping it entirely
+			ctx.globalCompositeOperation = 'destination-out';
+			// decrease the alpha property to create more prominent trails
+			ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+			ctx.fillRect(0, 0, cw, ch);
+			// change the composite operation back to our main mode
+			// lighter creates bright highlight points as the fireworks and particles overlap each other
+			ctx.globalCompositeOperation = 'lighter';
+			ctx.font = "50px sans-serif";
+			var textData = ctx.measureText(text);
+			ctx.fillStyle = "rgba(" + parseInt(random(0, 255)) + "," + parseInt(random(0, 255)) + "," + parseInt(random(0, 255)) + ",0.3)";
+			ctx.fillText(text, cw / 2 - textData.width / 2, ch / 2);
+
+			//canvas2
+			ctx2.globalCompositeOperation = 'destination-out';
+			// decrease the alpha property to create more prominent trails
+			ctx2.fillStyle = 'rgba(0, 0, 0, 0.5)';
+			ctx2.fillRect(0, 0, cw, ch);
+			// change the composite operation back to our main mode
+			// lighter creates bright highlight points as the fireworks and particles overlap each other
+			ctx2.globalCompositeOperation = 'lighter';
+
+			ctx2.font = "50px sans-serif";
+			var textData2 = ctx2.measureText(text);
+			ctx2.fillStyle = "rgba(" + parseInt(random(0, 255)) + "," + parseInt(random(0, 255)) + "," + parseInt(random(0, 255)) + ",0.3)";
+			ctx2.fillText(text, cw / 2 - textData2.width / 2, ch / 2);
+			//
+
+			// loop over each firework, draw it, update it
+			var i = fireworks.length;
+			while (i--) {
+				fireworks[i].draw();
+				fireworks[i].update(i);
+			}
+
+			// loop over each particle, draw it, update it
+			var i = particles.length;
+			while (i--) {
+				particles[i].draw();
+				particles[i].update(i);
+			}
+
+			// launch fireworks automatically to random coordinates, when the mouse isn't down
+			if (timerTick >= timerTotal) {
+				if (!mousedown) {
+					// start the firework at the bottom middle of the screen, then set the random target coordinates, the random y coordinates will be set within the range of the top half of the screen
+
+					//   for(var h=0;h<50;h++)
+					//   {
+					//        fireworks.push( new Firework( cw / 2, ch/2, random( 0, cw ), random( 0, ch  ) ) );
+					//   }
+					for (var s = 0; s < settingFireWoks.length; s += 2) {
+						fireworks.push(new Firework(cw / 2, ch / 2, settingFireWoks[s], settingFireWoks[s + 1]))
+					}
+
+					timerTick = 0;
+				}
+			} else {
+				timerTick++;
+			}
+
+			// limit the rate at which fireworks get launched when mouse is down
+			if (limiterTick >= limiterTotal) {
+				if (mousedown) {
+					// start the firework at the bottom middle of the screen, then set the current mouse coordinates as the target
+					fireworks.push(new Firework(cw / 2, ch / 2, mx, my));
+					limiterTick = 0;
+				}
+			} else {
+				limiterTick++;
+			}
+		}
+
+		// mouse event bindings
+		// update the mouse coordinates on mousemove
+		canvas.addEventListener('mousemove', function (e) {
+			mx = e.pageX - canvas.offsetLeft;
+			my = e.pageY - canvas.offsetTop;
+		});
+
+		// toggle mousedown state and prevent canvas from being selected
+		canvas.addEventListener('mousedown', function (e) {
+			e.preventDefault();
+			mousedown = true;
+		});
+
+		canvas.addEventListener('mouseup', function (e) {
+			e.preventDefault();
+			mousedown = false;
+		});
+
+		// update the mouse coordinates on mousemove
+		canvas2.addEventListener('mousemove', function (e) {
+			mx = e.pageX - canvas.offsetLeft;
+			my = e.pageY - canvas.offsetTop;
+		});
+
+		// toggle mousedown state and prevent canvas from being selected
+		canvas2.addEventListener('mousedown', function (e) {
+			e.preventDefault();
+			mousedown = true;
+			// test add
+			$("#tips").hide()
+			settingFireWoks.push(mx, my)
+		});
+
+		canvas2.addEventListener('mouseup', function (e) {
+			e.preventDefault();
+			mousedown = false;
+		});
+		// once the window loads, we are ready for some fireworks!
+		var button = document.getElementById("sure")
+		button.addEventListener("click", function () {
+			canvas2.style.display = "none"
+		})
+	</script>
+	<div style="text-align:center;">
+	</div>
+</body>
+
+</html>
